@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+	<SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">../</SolutionDir>
+	<OutputType>Library</OutputType>
+    <RootNamespace>GameTextLib</RootNamespace>
+	<!--<AssemblyName>GameTextLib</AssemblyName>-->
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="nkast.Xna.Framework.Graphics" Version="4.2.9001" >
+      <PrivateAssets>All</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="nkast.Xna.Framework" Version="4.2.9001" >
+      <PrivateAssets>All</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+	  <Compile Include="../src/**/*.cs" />
+  </ItemGroup>
+</Project>
