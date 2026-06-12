@@ -20,6 +20,8 @@ public class GameText
         {
             _subBank = value;
             SplitChar = SplitChar;
+            lineIndex = 0;
+            messageIndex = 0;
         }
     }
 
@@ -31,18 +33,33 @@ public class GameText
         set
         {
             _splitChar = value;
-            LineCount = 0;
-            for (int i = 0; i < CurrentMessage.Length; i++)
+            if (value == null)
             {
-                if (CurrentMessage[i] == _splitChar)
-                {
-                    LineCount++;
-                }
+                return;
             }
         }
     }
     public int lineIndex = 0;
-    public int LineCount { get; private set; }
+    public int LineCount
+    {
+        get
+        {
+            if (SplitChar == null)
+            {
+                return 1;
+            }
+            int lineCount = 1;
+            var currentMessage = CurrentMessage.Trim(SplitChar.Value);
+            for (int i = 0; i < currentMessage.Length; i++)
+            {
+                if (currentMessage[i] == _splitChar)
+                {
+                    lineCount++;
+                }
+            }
+            return lineCount;
+        }
+    }
     public int MessageCount => CurrentBank.Length;
 
     public ReadOnlySpan<char> CurrentLine
@@ -51,21 +68,20 @@ public class GameText
         {
             if (SplitChar == null)
             {
-                return CurrentMessage.AsSpan().Trim().Trim('\t');
+                return CurrentMessage;
             }
             int currentLine = 0;
             int startIndex = 0;
             int length = 0;
-            var currentMessage = CurrentMessage.AsSpan().Trim().Trim('\t');
-            currentMessage.Trim(SplitChar.Value);
-            for (int i = 0; i < CurrentMessage.Length; i++)
+            var currentMessage = CurrentMessage.Trim(SplitChar.Value);
+            for (int i = 0; i < currentMessage.Length; i++)
             {
                 if (currentMessage[i] == SplitChar)
                 {
                     currentLine++;
                     continue;
                 }
-                if (currentLine == lineIndex && startIndex == 0)
+                if (currentLine == lineIndex && currentLine != 0 && startIndex == 0)
                 {
                     startIndex = i;
                 }
@@ -74,7 +90,7 @@ public class GameText
                     length++;
                 }
             }
-            return currentMessage.Slice(startIndex, length);
+            return currentMessage.Slice(startIndex, length).Trim('\t');
         }
     }
 
@@ -92,7 +108,7 @@ public class GameText
         }
     }
 
-    public string CurrentMessage => CurrentBank[messageIndex];
+    public ReadOnlySpan<char> CurrentMessage => CurrentBank[messageIndex].AsSpan().Trim().Trim('\t');
     private string[] CurrentBank => SubBank == null ? textBank.text : textBank.children[SubBank].text;
 
     public void Draw(SpriteBatch spriteBatch, Vector2 pos, Color color, TextAnchor anchor = TextAnchor.Center, float scale = 1f)
@@ -133,15 +149,7 @@ public class GameText
                 textPos.X -= size.X;
                 break;
         }
-        int textLength = 0;
-        if (SubBank == null)
-        {
-            textLength = textBank.text[messageIndex].Length;
-        }
-        else
-        {
-            textLength = textBank.children[SubBank].text[messageIndex].Length;
-        }
+        int textLength = CurrentLine.Length;
         bool seenALetter = false;
         float startX = textPos.X;
         for (int i = 0; i < textLength; i++)
@@ -159,7 +167,7 @@ public class GameText
                 continue;
             }
             font.Draw(spriteBatch, CurrentLine[i], textPos, scale, color);
-            textPos.X += font.CharacterWidth(textBank.text[messageIndex][i]) * scale;
+            textPos.X += font.CharacterWidth(CurrentLine[i]) * scale;
             textPos.X += font.spacing * scale;
         }
     }
@@ -171,7 +179,7 @@ public class GameText
         widths.Clear();
         int width = 0;
         int height = font.DefaultHeight;
-        int textLength = CurrentMessage.Length;
+        int textLength = CurrentLine.Length;
         bool seenALetter = false;
         for (int i = 0; i < textLength; i++)
         {
@@ -188,7 +196,7 @@ public class GameText
             {
                 continue;
             }
-            width += font.CharacterWidth(textBank.text[messageIndex][i]);
+            width += font.CharacterWidth(CurrentLine[i]);
             if (i < textLength - 1)
             {
                 width += font.spacing;
