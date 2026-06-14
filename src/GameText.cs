@@ -13,6 +13,12 @@ public class GameText
     public int messageIndex = 0;
 
     private string _subBank;
+
+    public bool HasSubBank(string bank)
+    {
+        return textBank.children.ContainsKey(bank);
+    }
+
     public string SubBank
     {
         get => _subBank;
