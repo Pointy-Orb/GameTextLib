@@ -41,7 +41,7 @@ public class GameTextFont
     public int spacing = 1;
 
     private const string characterIndiciesString = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890";
-    private const string danglingLetters = "gjpqy,";
+    private const string danglingLetters = "Qgjpqy,";
 
     private Dictionary<char, Rectangle> charRects = new();
 

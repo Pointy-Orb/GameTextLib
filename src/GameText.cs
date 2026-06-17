@@ -114,6 +114,14 @@ public class GameText
         }
     }
 
+    public void ChangeFont(GameTextFont newFont)
+    {
+        if (newFont != null)
+        {
+            font = newFont;
+        }
+    }
+
     public ReadOnlySpan<char> CurrentMessage => CurrentBank[messageIndex].AsSpan().Trim().Trim('\t');
     private string[] CurrentBank => SubBank == null ? textBank.text : textBank.children[SubBank].text;
 
