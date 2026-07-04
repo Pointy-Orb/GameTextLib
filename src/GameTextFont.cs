@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -9,7 +10,7 @@ public class GameTextFont
     public required Texture2D Texture { get; init; }
 
     ///<summary>
-    ///If the font is contained in a region of the texture instead of the whole texture, specify that region here
+    ///If the is contained in a region of the texture instead of the whole texture, specify that region here
     ///</summary>
     public Rectangle? TextureDimensions = null;
 
@@ -61,10 +62,12 @@ public class GameTextFont
             xOffset = TextureDimensions.Value.X;
             yPos = TextureDimensions.Value.Y;
         }
+        int textureWidth = 0;
         for (int i = 0; i < characterIndiciesString.Length; i++)
         {
             if (TextureDimensions != null)
             {
+                textureWidth = TextureDimensions.Value.Width;
                 yPos += (DanglingHeight + 1) * (xPos / TextureDimensions.Value.Width);
                 if (xPos >= TextureDimensions.Value.Width)
                 {
@@ -73,6 +76,7 @@ public class GameTextFont
             }
             else
             {
+                textureWidth = Texture.Width;
                 yPos += (DanglingHeight + 1) * (xPos / Texture.Width);
                 if (xPos >= Texture.Width)
                 {
@@ -103,6 +107,11 @@ public class GameTextFont
             else
             {
                 rect.Height = DefaultHeight;
+            }
+            if (rect.Width + xPos > textureWidth)
+            {
+                yPos += (DanglingHeight + 1) * ((rect.Width + xPos) / Texture.Width);
+                xPos = 0;
             }
             rect.X = xPos + xOffset;
             rect.Y = yPos;
@@ -137,6 +146,11 @@ public class GameTextFont
             {
                 rect.Height = DefaultHeight;
             }
+            if (rect.Width + xPos > textureWidth)
+            {
+                yPos += (DanglingHeight + 1) * ((rect.Width + xPos) / Texture.Width);
+                xPos = 0;
+            }
             rect.X = xPos + xOffset;
             rect.Y = yPos;
             charRects.Add(SpecialCharacterOrder[i].Item1, rect);
@@ -148,14 +162,24 @@ public class GameTextFont
     ///<returns>
     ///The width of the character just drawn
     ///</returns>
-    public int Draw(SpriteBatch spriteBatch, char character, Vector2 pos, float scale, Color color)
+    public int Draw(SpriteBatch spriteBatch, char character, Vector2 pos, float scale, Color color, Casing casing = Casing.Normal)
     {
         if (!hasSetUpRectsYet)
         {
             SetUpRects();
         }
         Rectangle rect = UnknownCharRect;
-        if (charRects.TryGetValue(character, out var charRect))
+        var casedChar = character;
+        switch (casing)
+        {
+            case Casing.lowercase:
+                casedChar = casedChar.ToLower();
+                break;
+            case Casing.UPPERCASE:
+                casedChar = casedChar.ToUpper();
+                break;
+        }
+        if (charRects.TryGetValue(casedChar, out var charRect))
         {
             rect = charRect;
         }
@@ -163,12 +187,115 @@ public class GameTextFont
         return rect.Width;
     }
 
-    public int CharacterWidth(char character)
+    public int CharacterWidth(char character, Casing casing = Casing.Normal)
     {
-        if (charRects.TryGetValue(character, out var charRect))
+        var casedChar = character;
+        switch (casing)
+        {
+            case Casing.lowercase:
+                casedChar = casedChar.ToLower();
+                break;
+            case Casing.UPPERCASE:
+                casedChar = casedChar.ToUpper();
+                break;
+        }
+        if (charRects.TryGetValue(casedChar, out var charRect))
         {
             return charRect.Width;
         }
         return UnknownCharRect.Width;
     }
+
+    public void DrawInput(SpriteBatch spriteBatch, StringBuilder input, Vector2 pos, Color color, TextAnchor anchor = TextAnchor.Center, float scale = 1f)
+    {
+        Point size = TextBodySize(input, scale);
+        var textPos = pos;
+        switch (anchor)
+        {
+            case TextAnchor.TopLeft:
+            case TextAnchor.Top:
+            case TextAnchor.TopRight:
+                break;
+            case TextAnchor.Left:
+            case TextAnchor.Center:
+            case TextAnchor.Right:
+                textPos.Y -= size.Y / 2;
+                break;
+            case TextAnchor.BottomLeft:
+            case TextAnchor.Bottom:
+            case TextAnchor.BottomRight:
+                textPos.Y -= size.Y;
+                break;
+        }
+        switch (anchor)
+        {
+            case TextAnchor.TopLeft:
+            case TextAnchor.Left:
+            case TextAnchor.BottomLeft:
+                break;
+            case TextAnchor.Top:
+            case TextAnchor.Center:
+            case TextAnchor.Bottom:
+                textPos.X -= size.X / 2;
+                break;
+            case TextAnchor.TopRight:
+            case TextAnchor.Right:
+            case TextAnchor.BottomRight:
+                textPos.X -= size.X;
+                break;
+        }
+        int textLength = input.Length;
+        bool seenALetter = false;
+        float startX = textPos.X;
+        for (int i = 0; i < textLength; i++)
+        {
+            seenALetter |= input[i] != ' ';
+            if (!seenALetter)
+            {
+                continue;
+            }
+            Draw(spriteBatch, input[i], textPos, scale, color);
+            textPos.X += CharacterWidth(input[i]) * scale;
+            textPos.X += spacing * scale;
+        }
+    }
+
+    List<int> widths = new();
+
+    public Point TextBodySize(StringBuilder builder, float scale = 1f)
+    {
+        widths.Clear();
+        int width = 0;
+        int height = DefaultHeight;
+        int textLength = builder.Length;
+        bool seenALetter = false;
+        for (int i = 0; i < builder.Length; i++)
+        {
+            seenALetter |= builder[i] != ' ';
+            if (!seenALetter)
+            {
+                continue;
+            }
+            width += CharacterWidth(builder[i]);
+            if (i < textLength - 1)
+            {
+                width += spacing;
+            }
+        }
+        foreach (int lineWidth in widths)
+        {
+            if (width < lineWidth)
+            {
+                width = lineWidth;
+            }
+        }
+        return new Point((int)(width * scale), (int)(height * scale));
+    }
+}
+
+public enum Casing
+{
+    Normal,
+    lowercase,
+    UPPERCASE,
 }

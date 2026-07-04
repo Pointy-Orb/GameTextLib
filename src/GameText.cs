@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -13,6 +14,8 @@ public class GameText
     public int messageIndex = 0;
 
     private string _subBank;
+
+    public object[] Substitutions { get; private set; }
 
     public bool HasSubBank(string bank)
     {
@@ -30,6 +33,8 @@ public class GameText
             messageIndex = 0;
         }
     }
+
+    public Casing casing = Casing.Normal;
 
     public char newLineChar = '\n';
     private char? _splitChar;
@@ -104,6 +109,7 @@ public class GameText
     {
         this.font = font;
         this.textBank = textBank;
+        SetupTextBank(textBank);
     }
 
     public void ChangeTextBank(TextBank newTextBank)
@@ -112,6 +118,39 @@ public class GameText
         {
             textBank = newTextBank;
         }
+        SetupTextBank(newTextBank);
+    }
+
+    private void SetupTextBank(TextBank newTextBank)
+    {
+        int substitutionCount = 0;
+        for (int i = 0; i < newTextBank.text.Length; i++)
+        {
+            var message = newTextBank.text[i];
+            for (int j = 0; j < message.Length; j++)
+            {
+                int left = j - 1;
+                int right = j + 1;
+                if (left < 0 || right >= message.Length)
+                {
+                    continue;
+                }
+                if (message[left] != '{' || message[right] != '}')
+                {
+                    continue;
+                }
+                int subNum = message[j].GetNum();
+                if (subNum < 0)
+                {
+                    continue;
+                }
+                if (substitutionCount < subNum + 1)
+                {
+                    substitutionCount = subNum + 1;
+                }
+            }
+        }
+        Substitutions = new object[substitutionCount];
     }
 
     public void ChangeFont(GameTextFont newFont)
@@ -180,8 +219,23 @@ public class GameText
             {
                 continue;
             }
-            font.Draw(spriteBatch, CurrentLine[i], textPos, scale, color);
-            textPos.X += font.CharacterWidth(CurrentLine[i]) * scale;
+            bool isSubstitution = ActOnSubstitution(
+                CurrentLine,
+                i,
+                (letter) =>
+                {
+                    font.Draw(spriteBatch, letter, textPos, scale, color, casing);
+                    textPos.X += font.CharacterWidth(letter, casing) * scale;
+                    textPos.X += font.spacing * scale;
+                }
+            );
+            if (isSubstitution)
+            {
+                i += 2;
+                continue;
+            }
+            font.Draw(spriteBatch, CurrentLine[i], textPos, scale, color, casing);
+            textPos.X += font.CharacterWidth(CurrentLine[i], casing) * scale;
             textPos.X += font.spacing * scale;
         }
     }
@@ -210,7 +264,20 @@ public class GameText
             {
                 continue;
             }
-            width += font.CharacterWidth(CurrentLine[i]);
+            bool isSubstitution = ActOnSubstitution(
+                CurrentLine,
+                i,
+                (letter) =>
+                {
+                    width += font.CharacterWidth(letter, casing);
+                }
+            );
+            if (isSubstitution)
+            {
+                i += 2;
+                continue;
+            }
+            width += font.CharacterWidth(CurrentLine[i], casing);
             if (i < textLength - 1)
             {
                 width += font.spacing;
@@ -224,6 +291,42 @@ public class GameText
             }
         }
         return new Point((int)(width * scale), (int)(height * scale));
+    }
+
+    private bool ActOnSubstitution(ReadOnlySpan<char> message, int i, Action<char> act)
+    {
+        if (message[i] != '{')
+        {
+            return false;
+        }
+        if (i + 2 >= message.Length)
+        {
+            return false;
+        }
+        if (message[i + 2] != '}')
+        {
+            return false;
+        }
+        var subNum = message[i + 1].GetNum();
+        if (subNum < 0 || subNum >= Substitutions.Length)
+        {
+            return false;
+        }
+        var substitution = Substitutions[subNum];
+        if (substitution is string subString)
+        {
+            for (int j = 0; j < subString.Length; j++)
+            {
+                bool subSub = ActOnSubstitution(subString.AsSpan(), j, act);
+                if (subSub)
+                {
+                    j += 2;
+                    continue;
+                }
+                act.Invoke(subString[j]);
+            }
+        }
+        return true;
     }
 }
 

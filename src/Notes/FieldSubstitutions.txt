@@ -1,0 +1,20 @@
+Substitutions vs Field Substitutions
+
+Substitutions are specific to each text object, they come in an object list that can be changed freely.
+They're specified in the form of numbers (e.g. {0}, {1}, etc.)
+
+Field substitutions (not yet implemented) are static and apply across multiple text objects.
+They're specified in the form of substitution with a field name (e.g. {PLAYER_NAME}, {DOG_NAME}), intended to have a more global scope
+
+Idea for implementation:
+
+One static FieldSubstitutions class with the following parameters:
+A static dictionary with a string as a key and a Func<ReadOnlySpan<char>> as the value
+Having Func<ReadOnlySpan<char>> instead of raw object data means that the substitution output can be linked to a method and thus always return an up-to-date value in the same manner as a property.
+A static alternate lookup property that gives a ReadOnlySpan<char> lookup for said dictionary, for convenience
+
+The text parser would scan through, if it sees start brace, it loops until seeing end brace, then notes the index and length.
+Takes out the charspan piece corresponding to the chunk inside braces.
+Checks if the alternate lookup has the charspan as a key, if not then abandon the whole endeavor and print out the substitution key like nothing happened.
+
+If it does, then save the function's output to a variable, then print that output.
